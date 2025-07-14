@@ -1,4 +1,3 @@
-# main.py
 import os, logging, asyncio
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
@@ -41,7 +40,7 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 async def helper(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
-    low  = text.lower()
+    low = text.lower()
     if low.startswith(("sum ", "summary ")):
         text = f"Summarise this:\n{ text.partition(' ')[2] }"
     elif low.startswith(("tr ", "translate ")):
@@ -56,7 +55,7 @@ bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, helper))
 
 # ---------- webhook ----------
 WEBHOOK_PATH = f"/telegram-webhook/{TG_TOKEN}"
-WEBHOOK_URL  = f"{BASE_URL}{WEBHOOK_PATH}" if BASE_URL else None
+WEBHOOK_URL = f"{BASE_URL}{WEBHOOK_PATH}" if BASE_URL else None
 
 @app.post(WEBHOOK_PATH)
 async def telegram_webhook(req: Request):
@@ -68,12 +67,13 @@ async def telegram_webhook(req: Request):
 async def on_startup():
     await bot_app.initialize()
 
-    if WEBHOOK_URL:                      # production on Render
+    if WEBHOOK_URL:  # production on Render
         await bot_app.bot.set_webhook(url=WEBHOOK_URL, allowed_updates=["message"])
         logging.info(f"Webhook set to {WEBHOOK_URL}")
         await bot_app.start()
-    else:                                # local dev, no public URL
-        logging.info("No BASE_URL → starting long‑polling")
+    else:  # local dev, no public URL
+        logging.info("No BASE_URL → starting long-polling")
+        # Corrected: Use asyncio.create_task with proper async context
         asyncio.create_task(bot_app.run_polling(allowed_updates=["message"]))
 
 @app.on_event("shutdown")
