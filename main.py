@@ -68,17 +68,10 @@ async def telegram_webhook(req: Request):
     await bot_app.update_queue.put(Update.de_json(data, bot_app.bot))
     return {"ok": True}
 
-async def on_startup():
-    # Set webhook
+# ---------- Start PTB properly ---------- #
+@app.on_event("startup")
+async def startup():
+    await bot_app.initialize()
     await bot_app.bot.set_webhook(url=WEBHOOK_URL, allowed_updates=["message"])
-    logging.info("Webhook set to %s", WEBHOOK_URL)
-
-# PTB runs inside same event loop FastAPI uses
-asyncio.get_event_loop().create_task(bot_app.initialize())
-asyncio.get_event_loop().create_task(on_startup())
-asyncio.get_event_loop().create_task(bot_app.start())
-
-# ---------- Run with Uvicorn ---------- #
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=PORT)
+    await bot_app.start()
+    logging.info(f"✅ Bot started with webhook: {WEBHOOK_URL}")
