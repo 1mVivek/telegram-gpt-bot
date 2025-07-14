@@ -1,5 +1,5 @@
-python-telegram-bot[standard]
-fastapi
-uvicorn
-openai
+openai>=1.0.0
 python-dotenv
+fastapi
+python-telegram-bot[asyncio]
+uvicorn
