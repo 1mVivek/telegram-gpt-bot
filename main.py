@@ -9,32 +9,31 @@ from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler,
     ContextTypes, filters
 )
-import openai
+from openai import AsyncOpenAI  # ✅ updated import
 
 # ---------- config ----------
-load_dotenv()                           # read .env when running locally
+load_dotenv()
 
 TG_TOKEN       = os.getenv("TG_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_MODEL   = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
-# Render provides these automatically in production
 PORT     = int(os.getenv("PORT", "10000"))
-BASE_URL = os.getenv("RENDER_EXTERNAL_URL", "").rstrip("/")   # empty locally
+BASE_URL = os.getenv("RENDER_EXTERNAL_URL", "").rstrip("/")
 
 assert TG_TOKEN and OPENAI_API_KEY, "❌ TG_TOKEN or OPENAI_API_KEY not set!"
 
-openai.api_key = OPENAI_API_KEY
+client = AsyncOpenAI(api_key=OPENAI_API_KEY)  # ✅ updated client
+
 logging.basicConfig(level=logging.INFO)
 
-# ---------- FastAPI + PTB ----------
 app     = FastAPI()
 bot_app = ApplicationBuilder().token(TG_TOKEN).build()
 
 # ---------- GPT helper ----------
 async def ask_gpt(prompt: str) -> str:
-    """Call OpenAI ChatCompletion and return the assistant message text."""
-    resp = await openai.ChatCompletion.acreate(
+    """Call OpenAI ChatCompletion (new SDK) and return the assistant message text."""
+    resp = await client.chat.completions.create(
         model       = OPENAI_MODEL,
         messages    = [{"role": "user", "content": prompt}],
         max_tokens  = 1024,
@@ -51,7 +50,6 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         parse_mode=ParseMode.MARKDOWN,
     )
 
-# plain‑text prefixes (sum …, tr …, write …)
 async def helper(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     low  = text.lower()
@@ -63,12 +61,11 @@ async def helper(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     elif low.startswith(("write ", "draft ")):
         prompt = f"Write creatively:\n{ text.partition(' ')[2] }"
     else:
-        return                              # ignore anything else
+        return
 
     reply = await ask_gpt(prompt)
     await update.message.reply_text(reply, parse_mode=ParseMode.MARKDOWN)
 
-# slash‑command helpers
 async def cmd_sum(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     query = ' '.join(ctx.args)
     if not query:
@@ -93,34 +90,30 @@ async def cmd_write(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     reply = await ask_gpt(f"Write creatively:\n{query}")
     await update.message.reply_text(reply, parse_mode=ParseMode.MARKDOWN)
 
-# ---------- register handlers ----------
 bot_app.add_handler(CommandHandler("start", start))
 bot_app.add_handler(CommandHandler("sum",   cmd_sum))
 bot_app.add_handler(CommandHandler("tr",    cmd_tr))
 bot_app.add_handler(CommandHandler("write", cmd_write))
 bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, helper))
 
-# ---------- webhook integration ----------
 WEBHOOK_PATH = f"/telegram-webhook/{TG_TOKEN}"
 WEBHOOK_URL  = f"{BASE_URL}{WEBHOOK_PATH}" if BASE_URL else None
 
 @app.post(WEBHOOK_PATH)
 async def telegram_webhook(req: Request):
-    """Forward Telegram updates (POSTed by Telegram) into python‑telegram‑bot."""
     data = await req.json()
     await bot_app.update_queue.put(Update.de_json(data, bot_app.bot))
     return {"ok": True}
 
-# ---------- FastAPI lifecycle ----------
 @app.on_event("startup")
 async def on_startup():
     await bot_app.initialize()
 
-    if WEBHOOK_URL:            # production (public URL available)
+    if WEBHOOK_URL:
         await bot_app.bot.set_webhook(url=WEBHOOK_URL, allowed_updates=["message"])
         await bot_app.start()
         logging.info(f"✅ Webhook set → {WEBHOOK_URL}")
-    else:                      # local dev fallback → long polling
+    else:
         logging.info("🔄 No BASE_URL, falling back to long polling")
         asyncio.create_task(
             bot_app.run_polling(allowed_updates=["message"])
