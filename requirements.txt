@@ -2,4 +2,4 @@ openai>=1.0.0
 python-dotenv
 fastapi
 uvicorn
-python-telegram-bot[asyncio]==20.7
+python-telegram-bot[asyncio]
