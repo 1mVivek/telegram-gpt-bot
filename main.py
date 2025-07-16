@@ -1,7 +1,9 @@
 #main.py (secured)
 
-import os, logging, asyncio from dotenv import load_dotenv
-
+import os
+import logging
+import asyncio
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request from telegram import Update from telegram.constants import ParseMode from telegram.ext import ( ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters ) from openai import AsyncOpenAI
 
 ---------- config ----------
