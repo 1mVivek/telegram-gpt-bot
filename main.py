@@ -97,16 +97,15 @@ async def helper(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         prompt = f"Write creatively:\n{content}"
 
     else:
-        # Normal chat
         prompt = text
 
     reply = await ask_gpt(prompt)
-safe_reply = escape_markdown(reply, version=2)
+    safe_reply = escape_markdown(reply, version=2)
 
-await update.message.reply_text(
-    safe_reply,
-    parse_mode=ParseMode.MARKDOWN_V2
-)
+    await update.message.reply_text(
+        safe_reply,
+        parse_mode=ParseMode.MARKDOWN_V2
+    )
 async def cmd_sum(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     query = ' '.join(ctx.args)
     if not query:
