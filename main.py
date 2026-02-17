@@ -5,6 +5,7 @@ import logging
 import asyncio
 from dotenv import load_dotenv
 
+from telegram.helpers import escape_markdown
 from fastapi import FastAPI, Request
 from telegram import Update
 from telegram.constants import ParseMode
@@ -35,7 +36,7 @@ bot_app = ApplicationBuilder().token(TG_TOKEN).build()
 
 # ---------- security ----------
 def sanitize_input(text: str) -> str:
-    banned = ["you are dan", "ignore all", "openai", "bypass", "pretend"]
+    banned = ["ignore all previous", "system prompt", "bypass safety"]
     for phrase in banned:
         if phrase.lower() in text.lower():
             return "[REDACTED unsafe content]"
@@ -51,35 +52,62 @@ async def ask_gpt(prompt: str) -> str:
             {"role": "user", "content": prompt}
         ],
         max_tokens=1024,
-        temperature=0.7,
+        temperature=0.2,
     )
     return resp.choices[0].message.content.strip()
 
 # ---------- command / message handlers ----------
 async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "👋 Hi! I’m your GPT assistant.\n"
-        "Use sum, tr, or write before text—"
-        "or the slash‑commands /sum, /tr, /write.",
+        "👋 Hi! I'm your GPT assistant.\n\n"
+"Just type anything to chat.\n"
+"You can also use:\n"
+"• sum <text>\n"
+"• tr <text>\n"
+"• write <prompt>")
         parse_mode=ParseMode.MARKDOWN,
     )
 
 async def helper(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
+    text = update.message.text.strip()
+    if not text:
+        await update.message.reply_text("⚠️ Please send some text.")
+        return
+
     low = text.lower()
 
     if low.startswith(("sum ", "summary ")):
-        prompt = f"Summarise this:\n{ text.partition(' ')[2] }"
+        content = text.partition(" ")[2].strip()
+        if not content:
+            await update.message.reply_text("⚠️ Please provide text after the command.")
+            return
+        prompt = f"Summarise this:\n{content}"
+
     elif low.startswith(("tr ", "translate ")):
-        prompt = f"Translate this text accurately:\n{ text.partition(' ')[2] }"
+        content = text.partition(" ")[2].strip()
+        if not content:
+            await update.message.reply_text("⚠️ Please provide text after the command.")
+            return
+        prompt = f"Translate this text accurately:\n{content}"
+
     elif low.startswith(("write ", "draft ")):
-        prompt = f"Write creatively:\n{ text.partition(' ')[2] }"
+        content = text.partition(" ")[2].strip()
+        if not content:
+            await update.message.reply_text("⚠️ Please provide text after the command.")
+            return
+        prompt = f"Write creatively:\n{content}"
+
     else:
-        return
+        # Normal chat
+        prompt = text
 
     reply = await ask_gpt(prompt)
-    await update.message.reply_text(reply, parse_mode=ParseMode.MARKDOWN)
+safe_reply = escape_markdown(reply, version=2)
 
+await update.message.reply_text(
+    safe_reply,
+    parse_mode=ParseMode.MARKDOWN_V2
+)
 async def cmd_sum(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     query = ' '.join(ctx.args)
     if not query:
