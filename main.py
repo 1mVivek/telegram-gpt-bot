@@ -60,14 +60,13 @@ async def ask_gpt(prompt: str) -> str:
 async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "👋 Hi! I'm your GPT assistant.\n\n"
-"Just type anything to chat.\n"
-"You can also use:\n"
-"• sum <text>\n"
-"• tr <text>\n"
-"• write <prompt>")
+        "Just type anything to chat.\n"
+        "You can also use:\n"
+        "• sum <text>\n"
+        "• tr <text>\n"
+        "• write <prompt>",
         parse_mode=ParseMode.MARKDOWN,
     )
-
 async def helper(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     if not text:
